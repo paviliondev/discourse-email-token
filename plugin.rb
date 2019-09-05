@@ -7,6 +7,7 @@
 after_initialize do
   Discourse::Application.routes.append do
     post "/users/email-login-token" => "users#email_login_token", constraints: { format: 'json' }
+    get "/session/email-login-topic/:token/:topic_id" => "session#email_login_topic"
   end
   
   require_dependency 'users_controller'
@@ -42,6 +43,42 @@ after_initialize do
       render json: json
     rescue RateLimiter::LimitExceeded
       render_json_error(I18n.t("rate_limiter.slow_down"))
+    end
+  end
+  
+  require_dependency 'session_controller'
+  class ::SessionController
+    skip_before_action :preload_json, :check_xhr, only: %i(email_login_topic)
+
+    def email_login_topic
+      raise Discourse::NotFound if !SiteSetting.enable_local_logins_via_email
+      second_factor_token = params[:second_factor_token]
+      second_factor_method = params[:second_factor_method].to_i
+      token = params[:token]
+      matched_token = EmailToken.confirmable(token)
+
+      if matched_token&.user&.totp_enabled?
+        if !second_factor_token.present?
+          return render json: { error: I18n.t('login.invalid_second_factor_code') }
+        elsif !matched_token.user.authenticate_second_factor(second_factor_token, second_factor_method)
+          RateLimiter.new(nil, "second-factor-min-#{request.remote_ip}", 3, 1.minute).performed!
+          return render json: { error: I18n.t('login.invalid_second_factor_code') }
+        end
+      end
+
+      if user = EmailToken.confirm(token)
+        if login_not_approved_for?(user)
+          return render json: login_not_approved
+        elsif payload = login_error_check(user)
+          return render json: payload
+        else
+          log_on_user(user)
+          topic = Topic.find(params[:topic_id])
+          return redirect_to topic.present? ? path("#{topic.relative_url}") : path("/")
+        end
+      end
+
+      return render json: { error: I18n.t('email_login.invalid_token') }
     end
   end
 end
