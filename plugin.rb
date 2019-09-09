@@ -8,6 +8,7 @@ after_initialize do
   Discourse::Application.routes.append do
     post "/users/email-login-token" => "users#email_login_token", constraints: { format: 'json' }
     get "/session/email-login-topic/:token/:topic_id" => "session#email_login_topic"
+    get "/session/email-login-composer/:token" => "session#email_login_topic"
   end
   
   require_dependency 'users_controller'
@@ -73,8 +74,19 @@ after_initialize do
           return render json: payload
         else
           log_on_user(user)
-          topic = Topic.find(params[:topic_id])
-          return redirect_to topic.present? ? path("#{topic.relative_url}") : path("/")
+          
+          redirect = "/"
+          
+          if params[:topic_id] && (topic = Topic.find(params[:topic_id]))
+            redirect = topic.relative_url if topic
+          elsif params[:title]
+            redirect = "/new-topic?title=#{params[:title]}"
+            redirect += "&body=#{params[:body]}" if params[:body]
+            redirect += "&category=#{params[:category]}" if params[:category]
+            redirect += "&tags=#{params[:tags]}" if params[:tags]
+          end
+          
+          return redirect_to path(redirect)
         end
       end
 
