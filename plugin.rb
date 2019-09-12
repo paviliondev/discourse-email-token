@@ -79,11 +79,17 @@ after_initialize do
           
           if params[:topic_id] && (topic = Topic.find(params[:topic_id]))
             redirect = topic.relative_url if topic
-          elsif params[:title]
-            redirect = "/new-topic?title=#{params[:title]}"
-            redirect += "&body=#{params[:body]}" if params[:body]
-            redirect += "&category=#{params[:category]}" if params[:category]
-            redirect += "&tags=#{params[:tags]}" if params[:tags]
+          elsif params[:title] || params[:body]
+            redirect = "/new-topic?"
+            first = true
+            
+            ["title", "body", "category", "tags"].each do |p|
+              if value = params[p.to_sym]
+                redirect += "&" if !first
+                redirect += "#{p}=#{URI.encode(value)}"
+                first = false if first
+              end
+            end
           end
           
           return redirect_to path(redirect)
