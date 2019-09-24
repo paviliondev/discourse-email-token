@@ -86,7 +86,7 @@ after_initialize do
             ["title", "body", "category", "tags"].each do |p|
               if value = params[p.to_sym]
                 redirect += "&" if !first
-                redirect += "#{p}=#{URI.encode(value)}"
+                redirect += "#{p}=#{CGI.escape(value)}"
                 first = false if first
               end
             end
