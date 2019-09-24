@@ -1,0 +1,4 @@
+en:
+  site_settings:
+    email_login_token_hour_limit: "Email login token hour rate limit"
+    email_login_token_minute_limit: "Email login token minute rate limit"

@@ -1,0 +1,5 @@
+plugins:
+  email_login_token_hour_limit:
+    default: 6
+  email_login_token_minute_limit:
+    default: 3

@@ -21,16 +21,16 @@ after_initialize do
       expires_now
       params.require(:login)
 
-      RateLimiter.new(nil, "email-login-hour-#{request.remote_ip}", 6, 1.hour).performed!
-      RateLimiter.new(nil, "email-login-min-#{request.remote_ip}", 3, 1.minute).performed!
+      RateLimiter.new(nil, "email-login-hour-#{request.remote_ip}", SiteSetting.email_login_token_hour_limit, 1.hour).performed!
+      RateLimiter.new(nil, "email-login-min-#{request.remote_ip}", SiteSetting.email_login_token_minute_limit, 1.minute).performed!
       user = User.human_users.find_by_username_or_email(params[:login])
       user_presence = user.present? && !user.staged
       
       json = success_json
 
       if user
-        RateLimiter.new(nil, "email-login-hour-#{user.id}", 6, 1.hour).performed!
-        RateLimiter.new(nil, "email-login-min-#{user.id}", 3, 1.minute).performed!
+        RateLimiter.new(nil, "email-login-hour-#{user.id}", SiteSetting.email_login_token_hour_limit, 1.hour).performed!
+        RateLimiter.new(nil, "email-login-min-#{user.id}", SiteSetting.email_login_token_minute_limit, 1.minute).performed!
 
         if user_presence
           email_token = user.email_tokens.create!(email: user.email)
@@ -62,7 +62,7 @@ after_initialize do
         if !second_factor_token.present?
           return render json: { error: I18n.t('login.invalid_second_factor_code') }
         elsif !matched_token.user.authenticate_second_factor(second_factor_token, second_factor_method)
-          RateLimiter.new(nil, "second-factor-min-#{request.remote_ip}", 3, 1.minute).performed!
+          RateLimiter.new(nil, "second-factor-min-#{request.remote_ip}", SiteSetting.email_login_token_minute_limit, 1.minute).performed!
           return render json: { error: I18n.t('login.invalid_second_factor_code') }
         end
       end
